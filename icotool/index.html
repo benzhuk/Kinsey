@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Example</title>
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+
+  <style type="text/css">
+    html, body {
+      height: 100%;
+    }
+    #mynetwork {
+      width: 100%;
+      height: 100%;
+      border: 1px solid lightgray;
+    }
+    #loadingBar {
+      position:absolute;
+      top:0px;
+      left:0px;
+      width: 100%;
+      height: 100%;
+      background-color:rgba(200,200,200,0.8);
+      -webkit-transition: all 0.5s ease;
+      -moz-transition: all 0.5s ease;
+      -ms-transition: all 0.5s ease;
+      -o-transition: all 0.5s ease;
+      transition: all 0.5s ease;
+      opacity:1;
+    }
+    #wrapper {
+      position:relative;
+      width:900px;
+      height:900px;
+    }
+
+    #text {
+      position:absolute;
+      top:8px;
+      left:530px;
+      width:30px;
+      height:50px;
+      margin:auto auto auto auto;
+      font-size:22px;
+      color: #000000;
+    }
+
+
+    div.outerBorder {
+      position:relative;
+      top:400px;
+      width:600px;
+      height:44px;
+      margin:auto auto auto auto;
+      border:8px solid rgba(0,0,0,0.1);
+      background: rgb(252,252,252); /* Old browsers */
+      background: -moz-linear-gradient(top,  rgba(252,252,252,1) 0%, rgba(237,237,237,1) 100%); /* FF3.6+ */
+      background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(252,252,252,1)), color-stop(100%,rgba(237,237,237,1))); /* Chrome,Safari4+ */
+      background: -webkit-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* Chrome10+,Safari5.1+ */
+      background: -o-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* Opera 11.10+ */
+      background: -ms-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* IE10+ */
+      background: linear-gradient(to bottom,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* W3C */
+      filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#fcfcfc', endColorstr='#ededed',GradientType=0 ); /* IE6-9 */
+      border-radius:72px;
+      box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+    }
+
+    #border {
+      position:absolute;
+      top:10px;
+      left:10px;
+      width:500px;
+      height:23px;
+      margin:auto auto auto auto;
+      box-shadow: 0px 0px 4px rgba(0,0,0,0.2);
+      border-radius:10px;
+    }
+
+    #bar {
+      position:absolute;
+      top:0px;
+      left:0px;
+      width:20px;
+      height:20px;
+      margin:auto auto auto auto;
+      border-radius:11px;
+      border:2px solid rgba(30,30,30,0.05);
+      background: rgb(0, 173, 246); /* Old browsers */
+      box-shadow: 2px 0px 4px rgba(0,0,0,0.4);
+    }
+  </style>
+</head>
+<body onload="load()">
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+<script type="text/javascript" src="data.js"></script>
+<script>
+  function load() {
+    let nodes = [];
+    let edges = [];
+
+    data.forEach((el, i) => {
+      if (i > 5000) return;
+      const icoName = el["ICO Listing"];
+      const teamName = el["Team-Name"];
+      const advisorName = el["Advisor-Name"];
+
+      let icoId = (nodes.find(el => el.label === icoName) || {}).id;
+      if (!icoId) {
+        icoId = nodes.length + 1;
+        nodes.push({ id: icoId, label: icoName, group: 0, value: 3 });
+      }
+
+      if (teamName) {
+        let teamNameId = nodes.find(el => el.label === teamName);
+        if (!teamNameId) {
+          nodes.push({ id: nodes.length + 1, label: teamName, group: 1, value: 2 });
+          edges.push({ from: nodes.length, to: icoId })
+        } else edges.push({ from: teamNameId.id, to: icoId });
+      }
+
+      if (advisorName) {
+        let advisorNameId = nodes.find(el => el.label === advisorName);
+        if (!advisorNameId) {
+          nodes.push({ id: nodes.length + 1, label: advisorName, group: 1, value: 1 });
+          edges.push({ from: nodes.length, to: icoId })
+        } else edges.push({ from: advisorNameId.id, to: icoId });
+      }
+    });
+
+    nodes.forEach((el, i) => {
+      if (edges.filter(edge => edge.from === el.id).length === 1) {
+        el.hidden = true;
+        edges.find(edge => edge.from === el.id).hidden = true;
+      }
+    });
+
+    nodes = nodes.filter(el => !el.hidden);
+    edges = edges.filter(el => !el.hidden);
+
+    console.log(nodes, edges);
+
+    let container = document.getElementById('mynetwork');
+
+    let network = new vis.Network(container,
+      { nodes, edges },
+      {
+        nodes: {
+          shape: 'dot',
+          scaling: {
+            min: 10,
+            max: 30
+          }
+        }
+      });
+
+    network.on("stabilizationProgress", function(params) {
+      const maxWidth = 496;
+      const minWidth = 20;
+      const widthFactor = params.iterations/params.total;
+      const width = Math.max(minWidth,maxWidth * widthFactor);
+
+      document.getElementById('bar').style.width = width + 'px';
+      document.getElementById('text').innerHTML = Math.round(widthFactor*100) + '%';
+    });
+    network.once("stabilizationIterationsDone", function() {
+      document.getElementById('text').innerHTML = '100%';
+      document.getElementById('bar').style.width = '496px';
+      document.getElementById('loadingBar').style.opacity = 0;
+      setTimeout(function () {document.getElementById('loadingBar').style.display = 'none';}, 500);
+    });
+  }
+</script>
+<div id="mynetwork"></div>
+<div id="loadingBar">
+  <div class="outerBorder">
+    <div id="text">23%</div>
+    <div id="border">
+      <div id="bar" style="width: 111.6px;"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
